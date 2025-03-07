@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetaMask Token Watcher</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1E88E5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        .info-display {
+            padding: 8px;
+            background-color: #F5F7FA;
+            border-radius: 4px;
+            margin-top: 5px;
+            border: 1px solid #E0E4E8;
+        }
+        #query-token {
+            margin-top: 10px;
+            width: auto;
+        }
+        #token-info {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .token-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .token-button-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px;
+            border-radius: 4px;
+            background-color: #F5F7FA;
+        }
+        
+        .token-button-container img {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            object-fit: contain;
+        }
+        
+        .token-button {
+            padding: 8px 16px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #333;
+        }
+        
+        .token-button:hover {
+            background-color: #F5F7FA;
+            transform: translateY(-1px);
+            border-color: #1E88E5;
+            color: #1E88E5;
+        }
+        
+        .token-button.active {
+            background-color: #1E88E5;
+            color: white;
+            border-color: #1976D2;
+        }
+    </style>
+</head>
+<body>
+    <h1>添加代币到 MetaMask</h1>
+    <div id="connect-section">
+        <button id="connect-button">连接 MetaMask</button>
+    </div>
+    <div id="token-form" style="display: none;">
+        <div class="form-group">
+            <label>代币列表:</label>
+            <div id="token-list" class="token-list">
+                <!-- 代币列表将通过JavaScript动态生成 -->
+            </div>
+        </div>
+        
+        <div id="token-info" style="display: none;">
+            <div class="form-group">
+                <label>代币符号:</label>
+                <div id="token-symbol-display" class="info-display"></div>
+            </div>
+            <div class="form-group">
+                <label>小数位数:</label>
+                <div id="token-decimals-display" class="info-display"></div>
+            </div>
+            <div class="form-group">
+                <label>Logo URL:</label>
+                <div id="token-logo-url-display" class="info-display"></div>
+                <div id="logo-preview" style="margin-top: 10px;">
+                    <img id="token-logo-preview" style="max-width: 64px; max-height: 64px; display: none;" />
+                </div>
+            </div>
+            
+            <button id="add-token">添加代币到MetaMask</button>
+        </div>
+    </div>
+</body>
+</html>
