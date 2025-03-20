@@ -56,6 +56,145 @@ function isMetaMaskInAppBrowser() {
 // 全局变量定义
 let userAccount = null;
 
+// 初始化WalletConnect方法 - 移到全局作用域
+async function initWalletConnect() {
+    try {
+        updateStatusText('正在初始化WalletConnect...');
+        console.log('初始化WalletConnect...');
+
+        let WalletConnectProviderClass;
+        try {
+            WalletConnectProviderClass = await loadWalletConnectProvider();
+            console.log('WalletConnectProvider已加载:', WalletConnectProviderClass);
+        } catch (loadError) {
+            console.error('加载WalletConnectProvider出错:', loadError);
+            
+            // 显示错误并提示用户
+            updateStatusText('加载WalletConnect失败，正在尝试备用方案...');
+            
+            // 尝试备用方案：使用QR码扫描方式
+            updateStatusText('无法加载WalletConnect组件，请尝试其他连接方式');
+            if (isMobile()) {
+                setTimeout(() => {
+                    openMetaMaskMobile();
+                }, 1000);
+            } else {
+                alert('WalletConnect加载失败，请尝试其他连接方式或刷新页面重试。');
+            }
+            throw loadError;
+        }
+
+        // 确保Web3已加载
+        if (!Web3) {
+            throw new Error('Web3未正确加载，无法初始化WalletConnect');
+        }
+
+        // 创建WalletConnect提供商实例
+        const config = {
+            infuraId: "9aa3d95b3bc440fa88ea12eaa4456161", 
+            rpc: {
+                1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+                56: "https://bsc-dataseed.binance.org/",
+                137: "https://polygon-rpc.com"
+            },
+            bridge: 'https://bridge.walletconnect.org',
+            qrcodeModalOptions: {
+                mobileLinks: ["metamask", "trust"]
+            }
+        };
+        
+        let provider;
+        try {
+            // 检查如何调用WalletConnectProvider
+            if (typeof WalletConnectProviderClass === 'function') {
+                console.log('使用构造函数创建WalletConnect提供商');
+                provider = new WalletConnectProviderClass(config);
+            } else if (WalletConnectProviderClass && typeof WalletConnectProviderClass.create === 'function') {
+                console.log('使用create方法创建WalletConnect提供商');
+                provider = WalletConnectProviderClass.create(config);
+            } else {
+                throw new Error('无法创建WalletConnect提供商实例，不是有效的构造函数');
+            }
+        } catch (providerError) {
+            console.error('创建WalletConnect提供商实例失败:', providerError);
+            updateStatusText('创建WalletConnect连接失败，请刷新页面重试');
+            throw providerError;
+        }
+
+        console.log('WalletConnect提供商已创建:', provider);
+        updateStatusText('WalletConnect已初始化，请在弹出的QR码窗口中连接钱包');
+
+        // 启用会话（显示QR码）
+        await provider.enable();
+        console.log('WalletConnect会话已启用');
+
+        // 创建Web3实例
+        window.web3 = new Web3(provider);
+        walletConnectProvider = provider;
+
+        // 获取连接的账户
+        const accounts = await window.web3.eth.getAccounts();
+        if (accounts.length > 0) {
+            userAccount = accounts[0];
+            updateUIForConnectedWallet();
+            updateStatusText(`已通过WalletConnect连接到账户: ${formatAddress(userAccount)}`);
+            console.log('已连接到账户:', userAccount);
+        }
+
+        // 监听账户变更
+        provider.on("accountsChanged", (accounts) => {
+            if (accounts.length > 0) {
+                userAccount = accounts[0];
+                updateUIForConnectedWallet();
+                updateStatusText(`账户已变更: ${formatAddress(userAccount)}`);
+            } else {
+                resetUI();
+                updateStatusText('没有连接账户');
+            }
+        });
+
+        // 监听链变更
+        provider.on("chainChanged", (chainId) => {
+            console.log('链已变更:', chainId);
+            updateStatusText(`链已变更: ${chainId}`);
+        });
+
+        // 监听断开连接
+        provider.on("disconnect", (code, reason) => {
+            console.log('断开连接:', code, reason);
+            userAccount = null;
+            resetUI();
+            updateStatusText('钱包已断开连接');
+        });
+
+        return provider;
+    } catch (error) {
+        console.error('初始化WalletConnect时出错:', error);
+        updateStatusText(`WalletConnect连接失败: ${error.message || error}`);
+
+        // 显示更详细的错误信息
+        console.log('错误详情:', error);
+        if (error.toString().includes('User closed modal')) {
+            updateStatusText('用户关闭了WalletConnect连接窗口');
+        }
+
+        // 显示错误信息并提供替代连接选项
+        updateStatusText('连接WalletConnect失败，请尝试其他连接方式');
+
+        // 如果在移动设备上，展示多种连接选项
+        if (isMobile()) {
+            setTimeout(() => {
+                openMetaMaskMobile(); // 这已经提供了多种连接选项
+            }, 1000);
+        } else {
+            // 在桌面上，告知用户安装MetaMask扩展
+            alert('连接失败。请安装MetaMask浏览器扩展，或尝试在移动设备上使用。');
+        }
+
+        throw error;
+    }
+}
+
 // MetaMask移动端连接函数 - 移到外部作用域
 function openMetaMaskMobile() {
     if (userAccount) {
@@ -477,145 +616,6 @@ try {
         }
     }
 
-    // 初始化通用WalletConnect方法
-    async function initWalletConnect() {
-        try {
-            updateStatusText('正在初始化WalletConnect...');
-            console.log('初始化WalletConnect...');
-
-            let WalletConnectProviderClass;
-            try {
-                WalletConnectProviderClass = await loadWalletConnectProvider();
-                console.log('WalletConnectProvider已加载:', WalletConnectProviderClass);
-            } catch (loadError) {
-                console.error('加载WalletConnectProvider出错:', loadError);
-                
-                // 显示错误并提示用户
-                updateStatusText('加载WalletConnect失败，正在尝试备用方案...');
-                
-                // 尝试备用方案：使用QR码扫描方式
-                updateStatusText('无法加载WalletConnect组件，请尝试其他连接方式');
-                if (isMobile()) {
-                    setTimeout(() => {
-                        openMetaMaskMobile();
-                    }, 1000);
-                } else {
-                    alert('WalletConnect加载失败，请尝试其他连接方式或刷新页面重试。');
-                }
-                throw loadError;
-            }
-
-            // 确保Web3已加载
-            if (!Web3) {
-                throw new Error('Web3未正确加载，无法初始化WalletConnect');
-            }
-
-            // 创建WalletConnect提供商实例
-            const config = {
-                infuraId: "9aa3d95b3bc440fa88ea12eaa4456161", 
-                rpc: {
-                    1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-                    56: "https://bsc-dataseed.binance.org/",
-                    137: "https://polygon-rpc.com"
-                },
-                bridge: 'https://bridge.walletconnect.org',
-                qrcodeModalOptions: {
-                    mobileLinks: ["metamask", "trust"]
-                }
-            };
-            
-            let provider;
-            try {
-                // 检查如何调用WalletConnectProvider
-                if (typeof WalletConnectProviderClass === 'function') {
-                    console.log('使用构造函数创建WalletConnect提供商');
-                    provider = new WalletConnectProviderClass(config);
-                } else if (WalletConnectProviderClass && typeof WalletConnectProviderClass.create === 'function') {
-                    console.log('使用create方法创建WalletConnect提供商');
-                    provider = WalletConnectProviderClass.create(config);
-                } else {
-                    throw new Error('无法创建WalletConnect提供商实例，不是有效的构造函数');
-                }
-            } catch (providerError) {
-                console.error('创建WalletConnect提供商实例失败:', providerError);
-                updateStatusText('创建WalletConnect连接失败，请刷新页面重试');
-                throw providerError;
-            }
-
-            console.log('WalletConnect提供商已创建:', provider);
-            updateStatusText('WalletConnect已初始化，请在弹出的QR码窗口中连接钱包');
-
-            // 启用会话（显示QR码）
-            await provider.enable();
-            console.log('WalletConnect会话已启用');
-
-            // 创建Web3实例
-            window.web3 = new Web3(provider);
-            walletConnectProvider = provider;
-
-            // 获取连接的账户
-            const accounts = await window.web3.eth.getAccounts();
-            if (accounts.length > 0) {
-                userAccount = accounts[0];
-                updateUIForConnectedWallet();
-                updateStatusText(`已通过WalletConnect连接到账户: ${formatAddress(userAccount)}`);
-                console.log('已连接到账户:', userAccount);
-            }
-
-            // 监听账户变更
-            provider.on("accountsChanged", (accounts) => {
-                if (accounts.length > 0) {
-                    userAccount = accounts[0];
-                    updateUIForConnectedWallet();
-                    updateStatusText(`账户已变更: ${formatAddress(userAccount)}`);
-                } else {
-                    resetUI();
-                    updateStatusText('没有连接账户');
-                }
-            });
-
-            // 监听链变更
-            provider.on("chainChanged", (chainId) => {
-                console.log('链已变更:', chainId);
-                updateStatusText(`链已变更: ${chainId}`);
-            });
-
-            // 监听断开连接
-            provider.on("disconnect", (code, reason) => {
-                console.log('断开连接:', code, reason);
-                userAccount = null;
-                resetUI();
-                updateStatusText('钱包已断开连接');
-            });
-
-            return provider;
-        } catch (error) {
-            console.error('初始化WalletConnect时出错:', error);
-            updateStatusText(`WalletConnect连接失败: ${error.message || error}`);
-
-            // 显示更详细的错误信息
-            console.log('错误详情:', error);
-            if (error.toString().includes('User closed modal')) {
-                updateStatusText('用户关闭了WalletConnect连接窗口');
-            }
-
-            // 显示错误信息并提供替代连接选项
-            updateStatusText('连接WalletConnect失败，请尝试其他连接方式');
-
-            // 如果在移动设备上，展示多种连接选项
-            if (isMobile()) {
-                setTimeout(() => {
-                    openMetaMaskMobile(); // 这已经提供了多种连接选项
-                }, 1000);
-            } else {
-                // 在桌面上，告知用户安装MetaMask扩展
-                alert('连接失败。请安装MetaMask浏览器扩展，或尝试在移动设备上使用。');
-            }
-
-            throw error;
-        }
-    }
-    
     // 添加备用WalletConnect连接方法 - 使用在线二维码生成器
     function showWalletConnectQRBackup() {
         console.log('Showing backup WalletConnect QR code');
@@ -1010,123 +1010,6 @@ try {
                 document.getElementById('token-info').style.display = 'none';
                 hideLoader();
             }
-        }
-
-        // 更新MetaMask移动端连接函数
-        function openMetaMaskMobile() {
-            if (userAccount) {
-                console.log("Already connected to wallet, no need to reconnect");
-                return;
-            }
-
-            // 创建连接选项容器
-            const connectionOptionsContainer = document.createElement('div');
-            connectionOptionsContainer.className = 'connection-options';
-            connectionOptionsContainer.style.marginTop = '20px';
-            connectionOptionsContainer.style.display = 'flex';
-            connectionOptionsContainer.style.flexDirection = 'column';
-            connectionOptionsContainer.style.gap = '10px';
-
-            // 添加说明
-            const instructionsText = document.createElement('p');
-            instructionsText.textContent = 'Please select connection method:';
-            instructionsText.style.margin = '0 0 10px 0';
-            instructionsText.style.fontWeight = 'bold';
-            connectionOptionsContainer.appendChild(instructionsText);
-
-            // 添加移动端深度链接选项
-            const deepLinkOptions = [
-                {
-                    name: 'MetaMask - Method 1 (Recommended)',
-                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
-                        chainId: '1',
-                        rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-                        returnTo: window.location.href
-                    }))}`,
-                    icon: '📱'
-                },
-                {
-                    name: 'MetaMask - Method 2',
-                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
-                        chainId: '1',
-                        rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
-                        returnTo: window.location.href
-                    }))}`,
-                    icon: '🔗'
-                },
-                {
-                    name: 'MetaMask - Method 3',
-                    url: `https://metamask.io/download/`,
-                    icon: '⬇️'
-                }
-            ];
-
-            deepLinkOptions.forEach(option => {
-                const button = document.createElement('button');
-                button.className = 'metamask-button';
-                button.innerHTML = `${option.icon} ${option.name}`;
-                button.onclick = () => {
-                    console.log(`尝试通过 ${option.name} 连接 MetaMask`, { name: option.name, url: option.url, icon: option.icon });
-
-                    updateStatusText(`正在尝试连接到 MetaMask (${option.name})...`);
-                    window.location.href = option.url;
-                };
-                connectionOptionsContainer.appendChild(button);
-            });
-
-            // 添加WalletConnect选项
-            const wcButton = document.createElement('button');
-            wcButton.className = 'metamask-button walletconnect-button';
-            wcButton.innerHTML = '<img src="https://cdn.jsdelivr.net/gh/WalletConnect/walletconnect-assets/svg/original/walletconnect-logo.svg" style="height: 20px; margin-right: 8px;" /> 通过WalletConnect连接MetaMask';
-            wcButton.style.backgroundColor = '#3b99fc';
-            wcButton.style.color = 'white';
-            wcButton.style.display = 'flex';
-            wcButton.style.alignItems = 'center';
-            wcButton.style.justifyContent = 'center';
-            wcButton.onclick = () => {
-                console.log('尝试通过WalletConnect连接MetaMask');
-                updateStatusText('正在初始化WalletConnect连接...');
-
-                // 移除连接选项容器
-                if (connectionOptionsContainer.parentNode) {
-                    connectionOptionsContainer.parentNode.removeChild(connectionOptionsContainer);
-                }
-
-                // 保存尝试连接的状态，用于返回时恢复
-                saveConnectionState({
-                    connecting: true,
-                    method: 'walletconnect',
-                    timestamp: Date.now()
-                });
-
-                // 初始化WalletConnect，如果失败则显示备用二维码
-                initWalletConnect().catch(error => {
-                    console.error('WalletConnect连接失败:', error);
-                    updateStatusText(`WalletConnect连接失败: ${error.message || '未知错误'}`);
-
-                    // 显示备用二维码连接选项
-                    showWalletConnectQRBackup();
-                    
-                    // 如果连接失败，重新显示连接选项
-                    setTimeout(() => {
-                        document.getElementById('metamask-container').appendChild(connectionOptionsContainer);
-                    }, 500);
-                });
-            };
-            connectionOptionsContainer.appendChild(wcButton);
-
-            // 清除现有内容并添加选项
-            let container = document.getElementById('metamask-container');
-            if (!container) {
-                // 如果容器不存在，创建一个并添加到body
-                container = document.createElement('div');
-                container.id = 'metamask-container';
-                container.style.margin = '20px 0';
-                document.body.appendChild(container);
-                console.log('创建了metamask-container元素');
-            }
-            container.innerHTML = '';
-            container.appendChild(connectionOptionsContainer);
         }
 
         // 连接钱包按钮点击事件
