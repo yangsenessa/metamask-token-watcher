@@ -77,12 +77,12 @@ function openMetaMaskMobile() {
     const deepLinkOptions = [
         {
             name: 'MetaMask - Method 1 (Recommended)',
-            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
+            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
             icon: '📱'
         },
         {
             name: 'MetaMask - Method 2',
-            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
+            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
             icon: '🔗'
         },
         {
@@ -1029,12 +1029,12 @@ try {
             const deepLinkOptions = [
                 {
                     name: 'MetaMask - Method 1 (Recommended)',
-                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
+                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
                     icon: '📱'
                 },
                 {
                     name: 'MetaMask - Method 2',
-                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
+                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
                     icon: '🔗'
                 },
                 {
