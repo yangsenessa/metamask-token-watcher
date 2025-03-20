@@ -77,12 +77,12 @@ function openMetaMaskMobile() {
     const deepLinkOptions = [
         {
             name: 'MetaMask - Method 1 (Recommended)',
-            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
             icon: '📱'
         },
         {
             name: 'MetaMask - Method 2',
-            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
             icon: '🔗'
         },
         {
@@ -1029,17 +1029,16 @@ try {
             const deepLinkOptions = [
                 {
                     name: 'MetaMask - Method 1 (Recommended)',
-                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
                     icon: '📱'
                 },
                 {
                     name: 'MetaMask - Method 2',
-                    name: 'MetaMask - 方式2',
-                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent('https://wallet.reverse.plus/')}&chainId=1`,
                     icon: '🔗'
                 },
                 {
-                    name: 'MetaMask - 方式3',
+                    name: 'MetaMask - Method 3',
                     url: `https://metamask.io/download/`,
                     icon: '⬇️'
                 }
@@ -1145,32 +1144,32 @@ try {
         // 添加代币按钮点击事件 - 优化版本
         addTokenButton.addEventListener('click', async () => {
             if (!currentTokenData) {
-                alert('请先查询代币信息');
+                alert('Please query token information first');
                 return;
             }
 
             try {
                 showLoader();
-                updateStatusText('正在处理添加代币请求...');
-                console.log('正在添加代币:', currentTokenData);
+                updateStatusText('Processing token addition request...');
+                console.log('Adding token:', currentTokenData);
 
                 // 获取当前网络ID
                 let chainId;
                 try {
                     if (window.ethereum) {
                         chainId = await window.ethereum.request({ method: 'eth_chainId' });
-                        console.log('当前链ID:', chainId);
+                        console.log('Current chain ID:', chainId);
                     } else if (web3 && web3.eth) {
                         chainId = await web3.eth.getChainId();
-                        console.log('当前链ID:', chainId);
+                        console.log('Current chain ID:', chainId);
                     }
                 } catch (e) {
-                    console.warn('无法获取链ID:', e);
+                    console.warn('Failed to get chain ID:', e);
                 }
 
                 // 确保web3已初始化
                 if (!web3) {
-                    throw new Error('Web3未初始化，请先连接钱包');
+                    throw new Error('Web3 not initialized, please connect wallet first');
                 }
 
                 // 标准化代币参数
@@ -1183,13 +1182,13 @@ try {
                         image: currentTokenData.logoUrl || undefined
                     }
                 };
-                console.log('代币添加参数:', tokenParams);
+                console.log('Token addition parameters:', tokenParams);
 
                 // 检测连接类型，并使用相应的方法添加代币
                 if (window.ethereum && web3.currentProvider === window.ethereum) {
                     // 使用MetaMask浏览器扩展
                     try {
-                        updateStatusText('请在MetaMask弹窗中确认添加代币...');
+                        updateStatusText('Please confirm token addition in MetaMask popup...');
 
                         // 在MetaMask内置浏览器中使用特殊处理
                         if (isMetaMaskInAppBrowser()) {
@@ -1218,26 +1217,26 @@ try {
                         if (wasAdded) {
                             // 添加成功后进行验证
                             await verifyTokenAddition(currentTokenData.address);
-                            updateStatusText('代币添加成功！');
-                            alert('代币添加成功！请在MetaMask中查看。');
+                            updateStatusText('Token added successfully!');
+                            alert('Token added successfully! Please check in MetaMask.');
                         } else {
-                            updateStatusText('代币添加被取消');
-                            alert('代币添加被取消');
+                            updateStatusText('Token addition cancelled');
+                            alert('Token addition cancelled');
                         }
                     } catch (error) {
-                        console.error('添加代币到MetaMask插件时出错:', error);
-                        alert(`添加代币失败: ${error.message}`);
+                        console.error('Error adding token to MetaMask extension:', error);
+                        alert(`Failed to add token: ${error.message}`);
                         // 尝试使用备用方法
                         showTokenAddOptions();
                     }
                 } else if (isMobile() && !walletConnectProvider) {
                     // 移动设备上使用多种添加代币方法
-                    updateStatusText('正在打开代币添加选项...');
+                    updateStatusText('Opening token addition options...');
                     showTokenAddOptions();
                 } else if (walletConnectProvider) {
                     // 使用WalletConnect
                     try {
-                        updateStatusText('正在通过WalletConnect添加代币...');
+                        updateStatusText('Adding token via WalletConnect...');
 
                         const wasAdded = await walletConnectProvider.request({
                             method: 'wallet_watchAsset',
@@ -1247,27 +1246,27 @@ try {
                         if (wasAdded) {
                             // 添加成功后进行验证
                             await verifyTokenAddition(currentTokenData.address);
-                            updateStatusText('代币添加成功！');
-                            alert('代币添加成功！请在钱包中查看。');
+                            updateStatusText('Token added successfully!');
+                            alert('Token added successfully! Please check in your wallet.');
                         } else {
-                            updateStatusText('代币添加被取消');
-                            alert('代币添加被取消');
+                            updateStatusText('Token addition cancelled');
+                            alert('Token addition cancelled');
                         }
                     } catch (error) {
                         // 如果不支持wallet_watchAsset方法，显示手动添加信息
-                        console.error('WalletConnect添加代币错误:', error);
-                        updateStatusText('您的钱包不支持自动添加代币，请尝试手动添加');
+                        console.error('WalletConnect token addition error:', error);
+                        updateStatusText('Your wallet does not support automatic token addition, please try manual addition');
                         showTokenAddOptions();
                     }
                 } else {
-                    throw new Error('未检测到支持的钱包连接');
+                    throw new Error('No supported wallet connection detected');
                 }
 
                 hideLoader();
             } catch (error) {
-                console.error('添加代币时发生错误:', error);
-                updateStatusText(`添加代币失败: ${error.message}`);
-                alert('添加代币失败: ' + error.message);
+                console.error('Error during token addition:', error);
+                updateStatusText(`Failed to add token: ${error.message}`);
+                alert('Failed to add token: ' + error.message);
                 hideLoader();
             }
         });
@@ -1280,24 +1279,24 @@ try {
 
                 // 检查代币是否已添加
                 const exists = await window.MetaMaskHelper.checkIfTokenExists(tokenAddress);
-                console.log('代币验证结果:', exists ? '已添加' : '未找到');
+                console.log('Token verification result:', exists ? 'Added' : 'Not found');
 
                 if (!exists) {
-                    console.warn('代币可能未成功添加，建议手动添加');
+                    console.warn('Token may not have been added successfully, suggesting manual addition');
                     showTokenAddOptions();
                 }
 
                 return exists;
             } catch (error) {
-                console.error('验证代币添加状态时出错:', error);
+                console.error('Error verifying token addition status:', error);
                 return false;
             }
         }
 
         // 监听网络变化，处理代币重新添加
         window.ethereum?.on('chainChanged', async (chainId) => {
-            console.log('链已变更:', chainId);
-            updateStatusText(`链已变更: ${chainId}`);
+            console.log('Chain changed:', chainId);
+            updateStatusText(`Chain changed: ${chainId}`);
 
             // 检查是否有待处理的代币添加
             const pendingTokenAdd = localStorage.getItem('pending_token_add');
@@ -1306,7 +1305,7 @@ try {
                     const { token, timestamp } = JSON.parse(pendingTokenAdd);
                     // 如果是在最近5分钟内添加的代币，尝试重新添加
                     if (Date.now() - timestamp < 5 * 60 * 1000) {
-                        console.log('检测到网络变更，尝试重新添加代币:', token);
+                        console.log('Network change detected, attempting to re-add token:', token);
                         await window.ethereum.request({
                             method: 'wallet_watchAsset',
                             params: {
@@ -1323,7 +1322,7 @@ try {
                     // 清除待处理状态
                     localStorage.removeItem('pending_token_add');
                 } catch (error) {
-                    console.error('重新添加代币时出错:', error);
+                    console.error('Error re-adding token:', error);
                 }
             }
         });
