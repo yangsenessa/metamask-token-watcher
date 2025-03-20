@@ -48,6 +48,11 @@ function isMobile() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+// MetaMask内置浏览器检测函数 - 移到全局作用域
+function isMetaMaskInAppBrowser() {
+    return window.ethereum && window.ethereum.isMetaMask && /MetaMask/.test(navigator.userAgent);
+}
+
 // 全局变量定义
 let userAccount = null;
 
@@ -763,10 +768,6 @@ try {
         document.body.appendChild(modal);
         
         updateStatusText('Please scan the WalletConnect QR code with your wallet app to connect');
-    }
-
-    function isMetaMaskInAppBrowser() {
-        return window.ethereum && window.ethereum.isMetaMask && /MetaMask/.test(navigator.userAgent);
     }
 
     function ensureHttps() {
