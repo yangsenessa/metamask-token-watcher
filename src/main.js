@@ -77,12 +77,20 @@ function openMetaMaskMobile() {
     const deepLinkOptions = [
         {
             name: 'MetaMask - Method 1 (Recommended)',
-            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
+                chainId: '1',
+                rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+                returnTo: window.location.href
+            }))}`,
             icon: '📱'
         },
         {
             name: 'MetaMask - Method 2',
-            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
+                chainId: '1',
+                rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+                returnTo: window.location.href
+            }))}`,
             icon: '🔗'
         },
         {
@@ -1029,12 +1037,20 @@ try {
             const deepLinkOptions = [
                 {
                     name: 'MetaMask - Method 1 (Recommended)',
-                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
+                        chainId: '1',
+                        rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+                        returnTo: window.location.href
+                    }))}`,
                     icon: '📱'
                 },
                 {
                     name: 'MetaMask - Method 2',
-                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
+                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1&connectType=injected&connectParams=${encodeURIComponent(JSON.stringify({
+                        chainId: '1',
+                        rpcUrl: 'https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+                        returnTo: window.location.href
+                    }))}`,
                     icon: '🔗'
                 },
                 {
@@ -1599,7 +1615,7 @@ ${currentTokenData.logoUrl ? '图片URL: ' + currentTokenData.logoUrl : ''}
             if (isMobile()) {
                 console.log('移动设备检测 - 检查回调参数');
                 // 从MetaMask返回 - 可能是连接或添加代币操作返回
-                if (urlParams.has('metamask_return') || urlParams.has('theme') || urlParams.has('redirectUrl')) {
+                if (urlParams.has('metamask_return') || urlParams.has('theme') || urlParams.has('redirectUrl') || urlParams.has('connectType')) {
                     console.log('检测到从MetaMask应用返回');
 
                     // 显示提示信息
@@ -1619,21 +1635,32 @@ ${currentTokenData.logoUrl ? '图片URL: ' + currentTokenData.logoUrl : ''}
                     document.body.appendChild(returnNotice);
 
                     // 尝试重新连接
-                    setTimeout(() => {
-                        // 检查是否有保存的连接状态
-                        const savedState = loadConnectionState();
-                        if (savedState && savedState.connecting && savedState.method === 'walletconnect') {
-                            console.log('尝试恢复WalletConnect连接');
-                            initWalletConnect();
-                        } else {
-                            // 如果尚未连接，触发连接按钮
-                            connectButton.click();
-                        }
+                    setTimeout(async () => {
+                        try {
+                            // 检查是否有保存的连接状态
+                            const savedState = loadConnectionState();
+                            if (savedState && savedState.connecting && savedState.method === 'walletconnect') {
+                                console.log('尝试恢复WalletConnect连接');
+                                await initWalletConnect();
+                            } else {
+                                // 尝试直接连接MetaMask
+                                if (window.ethereum) {
+                                    await connectMetaMaskExtension();
+                                } else {
+                                    // 如果ethereum对象不存在，重新显示连接选项
+                                    openMetaMaskMobile();
+                                }
+                            }
 
-                        // 3秒后移除提示
-                        setTimeout(() => {
+                            // 3秒后移除提示
+                            setTimeout(() => {
+                                document.body.removeChild(returnNotice);
+                            }, 3000);
+                        } catch (error) {
+                            console.error('重新连接失败:', error);
+                            updateStatusText('重新连接失败，请重试');
                             document.body.removeChild(returnNotice);
-                        }, 3000);
+                        }
                     }, 1000);
                 }
             }
