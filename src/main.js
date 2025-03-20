@@ -11,7 +11,7 @@ logger.info('应用初始化中...');
 
 // 显示状态文本函数 - 移到前面以确保在调用前已定义
 function updateStatusText(text) {
-    console.log("状态更新:", text);
+    console.log("Status update:", text);
     // 显示状态文本
     const statusElement = document.getElementById('status-text');
     if (statusElement) {
@@ -54,7 +54,7 @@ let userAccount = null;
 // MetaMask移动端连接函数 - 移到外部作用域
 function openMetaMaskMobile() {
     if (userAccount) {
-        console.log("已连接到钱包，无需再次连接");
+        console.log("Already connected to wallet, no need to reconnect");
         return;
     }
 
@@ -68,7 +68,7 @@ function openMetaMaskMobile() {
 
     // 添加说明
     const instructionsText = document.createElement('p');
-    instructionsText.textContent = '请选择连接方式:';
+    instructionsText.textContent = 'Please select connection method:';
     instructionsText.style.margin = '0 0 10px 0';
     instructionsText.style.fontWeight = 'bold';
     connectionOptionsContainer.appendChild(instructionsText);
@@ -76,17 +76,17 @@ function openMetaMaskMobile() {
     // 添加移动端深度链接选项
     const deepLinkOptions = [
         {
-            name: 'MetaMask - 方式1 (推荐)',
-            url: `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`,
+            name: 'MetaMask - Method 1 (Recommended)',
+            url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
             icon: '📱'
         },
         {
-            name: 'MetaMask - 方式2',
-            url: `metamask://dapp/${window.location.host}${window.location.pathname}`,
+            name: 'MetaMask - Method 2',
+            url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
             icon: '🔗'
         },
         {
-            name: 'MetaMask - 方式3',
+            name: 'MetaMask - Method 3',
             url: `https://metamask.io/download/`,
             icon: '⬇️'
         }
@@ -97,9 +97,9 @@ function openMetaMaskMobile() {
         button.className = 'metamask-button';
         button.innerHTML = `${option.icon} ${option.name}`;
         button.onclick = () => {
-            console.log(`尝试通过 ${option.name} 连接 MetaMask`, { name: option.name, url: option.url, icon: option.icon });
+            console.log(`Attempting to connect via ${option.name}`, { name: option.name, url: option.url, icon: option.icon });
 
-            updateStatusText(`正在尝试连接到 MetaMask (${option.name})...`);
+            updateStatusText(`Attempting to connect to MetaMask (${option.name})...`);
             window.location.href = option.url;
         };
         connectionOptionsContainer.appendChild(button);
@@ -108,15 +108,15 @@ function openMetaMaskMobile() {
     // 添加WalletConnect选项
     const wcButton = document.createElement('button');
     wcButton.className = 'metamask-button walletconnect-button';
-    wcButton.innerHTML = '<img src="https://cdn.jsdelivr.net/gh/WalletConnect/walletconnect-assets/svg/original/walletconnect-logo.svg" style="height: 20px; margin-right: 8px;" /> 通过WalletConnect连接MetaMask';
+    wcButton.innerHTML = '<img src="https://cdn.jsdelivr.net/gh/WalletConnect/walletconnect-assets/svg/original/walletconnect-logo.svg" style="height: 20px; margin-right: 8px;" /> Connect via WalletConnect';
     wcButton.style.backgroundColor = '#3b99fc';
     wcButton.style.color = 'white';
     wcButton.style.display = 'flex';
     wcButton.style.alignItems = 'center';
     wcButton.style.justifyContent = 'center';
     wcButton.onclick = () => {
-        console.log('尝试通过WalletConnect连接MetaMask');
-        updateStatusText('正在初始化WalletConnect连接...');
+        console.log('Attempting to connect via WalletConnect');
+        updateStatusText('Initializing WalletConnect connection...');
 
         // 移除连接选项容器
         if (connectionOptionsContainer.parentNode) {
@@ -132,8 +132,8 @@ function openMetaMaskMobile() {
 
         // 初始化WalletConnect，如果失败则显示备用二维码
         initWalletConnect().catch(error => {
-            console.error('WalletConnect连接失败:', error);
-            updateStatusText(`WalletConnect连接失败: ${error.message || '未知错误'}`);
+            console.error('WalletConnect connection failed:', error);
+            updateStatusText(`WalletConnect connection failed: ${error.message || 'Unknown error'}`);
 
             // 显示备用二维码连接选项
             showWalletConnectQRBackup();
@@ -158,16 +158,21 @@ function openMetaMaskMobile() {
     }
     container.innerHTML = '';
     container.appendChild(connectionOptionsContainer);
+
+    if (isMetaMaskInAppBrowser()) {
+        updateStatusText('检测到MetaMask内置浏览器，使用直接连接方式');
+        connectMetaMaskExtension();
+        return;
+    }
 }
 
 // 保存连接状态到localStorage - 移到外部作用域
 function saveConnectionState(state) {
-    try {
-        localStorage.setItem('metamask_connection_state', JSON.stringify(state));
-        console.log('已保存连接状态:', state);
-    } catch (error) {
-        console.error('保存连接状态失败:', error);
-    }
+    localStorage.setItem('metamask_connection_state', JSON.stringify({
+        ...state,
+        timestamp: Date.now(),
+        returnUrl: window.location.href
+    }));
 }
 
 // 从localStorage加载连接状态 - 移到外部作用域
@@ -600,7 +605,7 @@ try {
     
     // 添加备用WalletConnect连接方法 - 使用在线二维码生成器
     function showWalletConnectQRBackup() {
-        console.log('显示备用WalletConnect二维码');
+        console.log('Showing backup WalletConnect QR code');
         
         // 创建模态框
         const modal = document.createElement('div');
@@ -625,11 +630,11 @@ try {
         container.style.textAlign = 'center';
         
         const title = document.createElement('h3');
-        title.textContent = '使用WalletConnect连接';
+        title.textContent = 'Connect via WalletConnect';
         title.style.marginTop = '0';
         
         const desc = document.createElement('p');
-        desc.textContent = '由于技术原因，请使用以下备用方式连接：';
+        desc.textContent = 'Due to technical reasons, please use the following backup method:';
         
         // 创建WalletConnect URI
         const wcUri = 'wc:00e46b69-d0cc-4b3e-b6a2-cee442f97188@1?bridge=https%3A%2F%2Fbridge.walletconnect.org&key=91303352aa104fe5925c6d321be95af2e6d60a3d5bb0c74dd9e0e3a6ae3c556d';
@@ -648,7 +653,7 @@ try {
         
         // 添加复制按钮
         const copyButton = document.createElement('button');
-        copyButton.textContent = '复制WalletConnect连接代码';
+        copyButton.textContent = 'Copy WalletConnect Connection Code';
         copyButton.style.marginTop = '15px';
         copyButton.style.padding = '10px';
         copyButton.style.backgroundColor = '#3396ff';
@@ -657,37 +662,37 @@ try {
         copyButton.style.borderRadius = '5px';
         copyButton.style.cursor = 'pointer';
         copyButton.onclick = () => {
-            // 安全复制文本到剪贴板
+            // Safely copy text to clipboard
             try {
-                // 首先尝试使用现代 API
+                // First try modern API
                 if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
                     navigator.clipboard.writeText(wcUri)
                         .then(() => {
-                            copyButton.textContent = '已复制!';
+                            copyButton.textContent = 'Copied!';
                             setTimeout(() => {
-                                copyButton.textContent = '复制WalletConnect连接代码';
+                                copyButton.textContent = 'Copy WalletConnect Connection Code';
                             }, 2000);
                         })
                         .catch(err => {
-                            console.warn('剪贴板API失败，使用备用方法:', err);
+                            console.warn('Clipboard API failed, using fallback method:', err);
                             fallbackCopyMethod();
                         });
                 } else {
-                    // 降级方案
+                    // Fallback method
                     fallbackCopyMethod();
                 }
             } catch (err) {
-                console.error('复制尝试失败:', err);
+                console.error('Copy attempt failed:', err);
                 fallbackCopyMethod();
             }
             
-            // 备用复制方法
+            // Fallback copy method
             function fallbackCopyMethod() {
                 try {
-                    // 创建临时文本区域
+                    // Create temporary text area
                     const textarea = document.createElement('textarea');
                     textarea.value = wcUri;
-                    // 确保文本区域在视图之外但依然可选
+                    // Ensure text area is out of view but still selectable
                     textarea.style.position = 'fixed';
                     textarea.style.opacity = '0';
                     textarea.style.left = '-9999px';
@@ -695,20 +700,20 @@ try {
                     textarea.focus();
                     textarea.select();
                     
-                    // 执行复制命令
+                    // Execute copy command
                     const successful = document.execCommand('copy');
                     document.body.removeChild(textarea);
                     
                     if (successful) {
-                        copyButton.textContent = '已复制!';
+                        copyButton.textContent = 'Copied!';
                     } else {
-                        copyButton.textContent = '复制失败，请手动复制';
+                        copyButton.textContent = 'Copy failed, please copy manually';
                     }
                 } catch (err) {
-                    console.error('备用复制方法失败:', err);
-                    copyButton.textContent = '复制失败，请手动复制';
+                    console.error('Fallback copy method failed:', err);
+                    copyButton.textContent = 'Copy failed, please copy manually';
                     
-                    // 显示一个可以手动复制的文本框
+                    // Show a text area for manual copying
                     const manualCopyArea = document.createElement('textarea');
                     manualCopyArea.value = wcUri;
                     manualCopyArea.style.width = '100%';
@@ -717,16 +722,16 @@ try {
                     copyButton.parentNode.insertBefore(manualCopyArea, copyButton.nextSibling);
                 }
                 
-                // 无论成功与否，都恢复按钮文本
+                // Restore button text regardless of success
                 setTimeout(() => {
-                    copyButton.textContent = '复制WalletConnect连接代码';
+                    copyButton.textContent = 'Copy WalletConnect Connection Code';
                 }, 2000);
             }
         };
         
-        // 添加关闭按钮
+        // Add close button
         const closeButton = document.createElement('button');
-        closeButton.textContent = '关闭';
+        closeButton.textContent = 'Close';
         closeButton.style.marginTop = '15px';
         closeButton.style.padding = '10px';
         closeButton.style.backgroundColor = '#6c757d';
@@ -738,7 +743,7 @@ try {
             document.body.removeChild(modal);
         };
         
-        // 组合所有元素
+        // Combine all elements
         container.appendChild(title);
         container.appendChild(desc);
         container.appendChild(qrDiv);
@@ -749,7 +754,27 @@ try {
         modal.appendChild(container);
         document.body.appendChild(modal);
         
-        updateStatusText('请使用钱包应用扫描WalletConnect二维码连接');
+        updateStatusText('Please scan the WalletConnect QR code with your wallet app to connect');
+    }
+
+    function isMetaMaskInAppBrowser() {
+        return window.ethereum && window.ethereum.isMetaMask && /MetaMask/.test(navigator.userAgent);
+    }
+
+    function ensureHttps() {
+        if (window.location.protocol !== 'https:') {
+            updateStatusText('警告：MetaMask深度链接需要HTTPS环境');
+            console.warn('当前页面未使用HTTPS，可能影响MetaMask连接');
+        }
+    }
+
+    function logConnectionAttempt(method, url) {
+        console.log(`尝试${method}连接:`, {
+            url,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent,
+            isMetaMaskInstalled: typeof window.ethereum !== 'undefined'
+        });
     }
 
     window.addEventListener('load', async () => {
@@ -981,7 +1006,7 @@ try {
         // 更新MetaMask移动端连接函数
         function openMetaMaskMobile() {
             if (userAccount) {
-                console.log("已连接到钱包，无需再次连接");
+                console.log("Already connected to wallet, no need to reconnect");
                 return;
             }
 
@@ -995,7 +1020,7 @@ try {
 
             // 添加说明
             const instructionsText = document.createElement('p');
-            instructionsText.textContent = '请选择连接方式:';
+            instructionsText.textContent = 'Please select connection method:';
             instructionsText.style.margin = '0 0 10px 0';
             instructionsText.style.fontWeight = 'bold';
             connectionOptionsContainer.appendChild(instructionsText);
@@ -1003,13 +1028,14 @@ try {
             // 添加移动端深度链接选项
             const deepLinkOptions = [
                 {
-                    name: 'MetaMask - 方式1 (推荐)',
-                    url: `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`,
+                    name: 'MetaMask - Method 1 (Recommended)',
+                    url: `https://metamask.app.link/connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
                     icon: '📱'
                 },
                 {
+                    name: 'MetaMask - Method 2',
                     name: 'MetaMask - 方式2',
-                    url: `metamask://dapp/${window.location.host}${window.location.pathname}`,
+                    url: `metamask://connect?action=connect&redirectUrl=${encodeURIComponent(window.location.href)}&chainId=1`,
                     icon: '🔗'
                 },
                 {
@@ -1165,12 +1191,33 @@ try {
                     try {
                         updateStatusText('请在MetaMask弹窗中确认添加代币...');
 
+                        // 在MetaMask内置浏览器中使用特殊处理
+                        if (isMetaMaskInAppBrowser()) {
+                            // 构建深度链接URL
+                            const tokenParamsString = JSON.stringify(tokenParams);
+                            const encodedParams = encodeURIComponent(tokenParamsString);
+                            const metamaskAddTokenUrl = `https://metamask.app.link/wallet_watchAsset?params=${encodedParams}`;
+                            
+                            // 保存当前状态
+                            localStorage.setItem('pending_token_add', JSON.stringify({
+                                token: currentTokenData,
+                                timestamp: Date.now(),
+                                chainId: chainId
+                            }));
+
+                            // 跳转到MetaMask
+                            window.location.href = metamaskAddTokenUrl;
+                            return;
+                        }
+
                         const wasAdded = await window.ethereum.request({
                             method: 'wallet_watchAsset',
                             params: tokenParams
                         });
 
                         if (wasAdded) {
+                            // 添加成功后进行验证
+                            await verifyTokenAddition(currentTokenData.address);
                             updateStatusText('代币添加成功！');
                             alert('代币添加成功！请在MetaMask中查看。');
                         } else {
@@ -1198,6 +1245,8 @@ try {
                         });
 
                         if (wasAdded) {
+                            // 添加成功后进行验证
+                            await verifyTokenAddition(currentTokenData.address);
                             updateStatusText('代币添加成功！');
                             alert('代币添加成功！请在钱包中查看。');
                         } else {
@@ -1220,6 +1269,62 @@ try {
                 updateStatusText(`添加代币失败: ${error.message}`);
                 alert('添加代币失败: ' + error.message);
                 hideLoader();
+            }
+        });
+
+        // 添加代币验证函数
+        async function verifyTokenAddition(tokenAddress) {
+            try {
+                // 等待一段时间让MetaMask处理完成
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // 检查代币是否已添加
+                const exists = await window.MetaMaskHelper.checkIfTokenExists(tokenAddress);
+                console.log('代币验证结果:', exists ? '已添加' : '未找到');
+
+                if (!exists) {
+                    console.warn('代币可能未成功添加，建议手动添加');
+                    showTokenAddOptions();
+                }
+
+                return exists;
+            } catch (error) {
+                console.error('验证代币添加状态时出错:', error);
+                return false;
+            }
+        }
+
+        // 监听网络变化，处理代币重新添加
+        window.ethereum?.on('chainChanged', async (chainId) => {
+            console.log('链已变更:', chainId);
+            updateStatusText(`链已变更: ${chainId}`);
+
+            // 检查是否有待处理的代币添加
+            const pendingTokenAdd = localStorage.getItem('pending_token_add');
+            if (pendingTokenAdd) {
+                try {
+                    const { token, timestamp } = JSON.parse(pendingTokenAdd);
+                    // 如果是在最近5分钟内添加的代币，尝试重新添加
+                    if (Date.now() - timestamp < 5 * 60 * 1000) {
+                        console.log('检测到网络变更，尝试重新添加代币:', token);
+                        await window.ethereum.request({
+                            method: 'wallet_watchAsset',
+                            params: {
+                                type: 'ERC20',
+                                options: {
+                                    address: token.address,
+                                    symbol: token.symbol,
+                                    decimals: parseInt(token.decimals),
+                                    image: token.logoUrl || undefined
+                                }
+                            }
+                        });
+                    }
+                    // 清除待处理状态
+                    localStorage.removeItem('pending_token_add');
+                } catch (error) {
+                    console.error('重新添加代币时出错:', error);
+                }
             }
         });
 
@@ -1690,6 +1795,18 @@ ${currentTokenData.logoUrl ? '图片URL: ' + currentTokenData.logoUrl : ''}
                 updateStatusText(`连接MetaMask失败: ${error.message || '未知错误'}`);
                 return false;
             }
+        }
+
+        function showFallbackOptions() {
+            const container = document.createElement('div');
+            container.innerHTML = `
+                <div style="margin-top: 20px;">
+                    <p>深度链接失败，请尝试以下方式：</p>
+                    <button onclick="initWalletConnect()">使用WalletConnect连接</button>
+                    <button onclick="showManualAddInstructions()">查看手动添加说明</button>
+                </div>
+            `;
+            document.getElementById('metamask-container').appendChild(container);
         }
     });
 } catch (error) {
