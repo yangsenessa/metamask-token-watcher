@@ -549,8 +549,91 @@ if (typeof window.Web3 !== 'undefined') {
     }
 }
 
+// 加载WalletConnect Provider
+async function loadWalletConnectProvider() {
+    console.log('Loading WalletConnect provider...');
+    if (window.WalletConnectProvider) {
+        console.log('Using preloaded WalletConnectProvider, type:', typeof window.WalletConnectProvider);
+        if (typeof window.WalletConnectProvider === 'function') {
+            return window.WalletConnectProvider;
+        }
+        
+        // 如果是对象，可能需要检查它的属性
+        console.log('WalletConnectProvider is not a constructor, checking structure:', Object.keys(window.WalletConnectProvider));
+        
+        // 如果是ES模块，可能需要访问default导出
+        if (window.WalletConnectProvider.default) {
+            console.log('Using WalletConnectProvider.default');
+            return window.WalletConnectProvider.default;
+        }
+
+        throw new Error('WalletConnectProvider structure not as expected');
+    }
+
+    console.log('Attempting to dynamically import WalletConnectProvider from CDN...');
+    // 尝试多个CDN源
+    const cdnUrls = [
+        'https://unpkg.com/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js',
+        'https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.7.8/dist/umd/index.min.js',
+        'https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js'
+    ];
+    
+    // 依次尝试不同的CDN源
+    let loaded = false;
+    let lastError = null;
+    
+    for (const url of cdnUrls) {
+        if (loaded) break;
+        
+        try {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = url;
+                script.onload = () => {
+                    console.log(`Successfully loaded WalletConnectProvider from ${url}`);
+                    resolve();
+                };
+                script.onerror = (err) => {
+                    console.error(`Failed to load from ${url}`, err);
+                    reject(new Error(`Failed to load: ${url}`));
+                };
+                document.head.appendChild(script);
+            });
+        } catch (err) {
+            lastError = err;
+            console.warn(`Failed to load ${url}, trying next source`);
+        }
+    }
+    
+    if (!loaded) {
+        throw lastError || new Error('All CDN sources failed to load');
+    }
+
+    // 检查加载结果
+    if (window.WalletConnectProvider) {
+        console.log('WalletConnectProvider loaded successfully from CDN, type:', typeof window.WalletConnectProvider);
+        if (typeof window.WalletConnectProvider === 'function') {
+            return window.WalletConnectProvider;
+        } else if (window.WalletConnectProvider.default) {
+            console.log('Using WalletConnectProvider.default');
+            return window.WalletConnectProvider.default;
+        } else {
+            console.warn('WalletConnectProvider structure is not as expected:', window.WalletConnectProvider);
+            for (const key in window.WalletConnectProvider) {
+                if (typeof window.WalletConnectProvider[key] === 'function') {
+                    console.log(`Attempting to use window.WalletConnectProvider.${key} as constructor`);
+                    return window.WalletConnectProvider[key];
+                }
+            }
+        }
+
+        throw new Error('Loaded successfully but no usable WalletConnectProvider constructor found');
+    }
+
+    throw new Error('WalletConnectProvider not loaded');
+}
+
 // 使用动态导入避免构造函数错误
-// import WalletConnectProvider from '@walletconnect/web3-provider';
 try {
     // ABI最小接口定义
     const minABI = [{
