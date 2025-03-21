@@ -64,6 +64,124 @@ function hideLoader() {
     }
 }
 
+// 初始化通用WalletConnect方法
+async function initWalletConnect() {
+    try {
+        updateStatusText('Initializing WalletConnect...');
+        if (!Web3) {
+            throw new Error('Web3 not properly loaded, cannot initialize WalletConnect');
+        }
+
+        let WalletConnectProviderClass;
+        try {
+            WalletConnectProviderClass = await loadWalletConnectProvider();
+            console.log('WalletConnectProvider loaded:', WalletConnectProviderClass);
+        } catch (loadError) {
+            console.error('Error loading WalletConnectProvider:', loadError);
+            // 尝试备用方案：使用QR码扫描方式
+            updateStatusText('Failed to load WalletConnect component, please try other connection methods');
+            if (isMobile()) {
+                setTimeout(() => {
+                    openMetaMaskMobile();
+                }, 1000);
+            } else {
+                alert('WalletConnect loading failed, please try other connection methods or refresh the page.');
+            }
+            throw loadError;
+        }
+
+        const config = {
+            rpc: {
+                1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
+                56: "https://bsc-dataseed.binance.org/",
+                137: "https://polygon-rpc.com"
+            },
+            bridge: 'https://bridge.walletconnect.org',
+            qrcodeModalOptions: {
+                mobileLinks: ["metamask", "trust"]
+            }
+        };
+
+        let provider;
+        try {
+            if (typeof WalletConnectProviderClass === 'function') {
+                console.log('Using constructor to create WalletConnect provider');
+                provider = new WalletConnectProviderClass(config);
+            } else if (WalletConnectProviderClass && typeof WalletConnectProviderClass.create === 'function') {
+                console.log('Using create method to create WalletConnect provider');
+                provider = WalletConnectProviderClass.create(config);
+            } else {
+                throw new Error('Cannot create WalletConnect provider instance, not a valid constructor');
+            }
+        } catch (providerError) {
+            console.error('Failed to create WalletConnect provider instance:', providerError);
+            updateStatusText('Failed to create WalletConnect connection, please refresh the page and try again');
+            throw providerError;
+        }
+
+        console.log('WalletConnect provider created:', provider);
+        updateStatusText('WalletConnect initialized, please connect your wallet in the QR code popup');
+
+        // 启用会话（显示QR码）
+        await provider.enable();
+        console.log('WalletConnect session enabled');
+
+        // 创建Web3实例
+        window.web3 = new Web3(provider);
+        walletConnectProvider = provider;
+
+        // 获取连接的账户
+        const accounts = await window.web3.eth.getAccounts();
+        if (accounts.length > 0) {
+            userAccount = accounts[0];
+            updateUIForConnectedWallet();
+            updateStatusText(`Connected to account via WalletConnect: ${formatAddress(userAccount)}`);
+        }
+
+        // 监听账户变更
+        provider.on("accountsChanged", (accounts) => {
+            if (accounts.length > 0) {
+                userAccount = accounts[0];
+                updateUIForConnectedWallet();
+                updateStatusText(`Account changed: ${formatAddress(userAccount)}`);
+            } else {
+                resetUI();
+                updateStatusText('No connected accounts');
+            }
+        });
+
+        // 监听链变更
+        provider.on("chainChanged", (chainId) => {
+            console.log('Chain changed:', chainId);
+            updateStatusText(`Chain changed: ${chainId}`);
+        });
+
+        // 监听断开连接
+        provider.on("disconnect", (code, reason) => {
+            console.log('Disconnected:', code, reason);
+            userAccount = null;
+            resetUI();
+            updateStatusText('Wallet disconnected');
+        });
+
+        return provider;
+    } catch (error) {
+        console.error('Error initializing WalletConnect:', error);
+        updateStatusText(`WalletConnect connection failed: ${error.message || error}`);
+        // 显示错误信息并提供替代连接选项
+        updateStatusText('Failed to connect to WalletConnect, please try other connection methods');
+        if (isMobile()) {
+            setTimeout(() => {
+                openMetaMaskMobile(); // 这已经提供了多种连接选项
+            }, 1000);
+        } else {
+            // 在桌面上，告知用户安装MetaMask扩展
+            alert('Connection failed. Please install the MetaMask browser extension or try using a mobile device.');
+        }
+        throw error;
+    }
+}
+
 // 初始化移动调试控制台
 // 参数: 第一个参数设为 true 可以在生产环境中启用
 initMobileDebug(false);
@@ -566,124 +684,6 @@ try {
         }
 
         throw new Error('WalletConnectProvider not loaded');
-    }
-
-    // 初始化通用WalletConnect方法
-    async function initWalletConnect() {
-        try {
-            updateStatusText('Initializing WalletConnect...');
-            if (!Web3) {
-                throw new Error('Web3 not properly loaded, cannot initialize WalletConnect');
-            }
-
-            let WalletConnectProviderClass;
-            try {
-                WalletConnectProviderClass = await loadWalletConnectProvider();
-                console.log('WalletConnectProvider loaded:', WalletConnectProviderClass);
-            } catch (loadError) {
-                console.error('Error loading WalletConnectProvider:', loadError);
-                // 尝试备用方案：使用QR码扫描方式
-                updateStatusText('Failed to load WalletConnect component, please try other connection methods');
-                if (isMobile()) {
-                    setTimeout(() => {
-                        openMetaMaskMobile();
-                    }, 1000);
-                } else {
-                    alert('WalletConnect loading failed, please try other connection methods or refresh the page.');
-                }
-                throw loadError;
-            }
-
-            const config = {
-                rpc: {
-                    1: "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161",
-                    56: "https://bsc-dataseed.binance.org/",
-                    137: "https://polygon-rpc.com"
-                },
-                bridge: 'https://bridge.walletconnect.org',
-                qrcodeModalOptions: {
-                    mobileLinks: ["metamask", "trust"]
-                }
-            };
-
-            let provider;
-            try {
-                if (typeof WalletConnectProviderClass === 'function') {
-                    console.log('Using constructor to create WalletConnect provider');
-                    provider = new WalletConnectProviderClass(config);
-                } else if (WalletConnectProviderClass && typeof WalletConnectProviderClass.create === 'function') {
-                    console.log('Using create method to create WalletConnect provider');
-                    provider = WalletConnectProviderClass.create(config);
-                } else {
-                    throw new Error('Cannot create WalletConnect provider instance, not a valid constructor');
-                }
-            } catch (providerError) {
-                console.error('Failed to create WalletConnect provider instance:', providerError);
-                updateStatusText('Failed to create WalletConnect connection, please refresh the page and try again');
-                throw providerError;
-            }
-
-            console.log('WalletConnect provider created:', provider);
-            updateStatusText('WalletConnect initialized, please connect your wallet in the QR code popup');
-
-            // 启用会话（显示QR码）
-            await provider.enable();
-            console.log('WalletConnect session enabled');
-
-            // 创建Web3实例
-            window.web3 = new Web3(provider);
-            walletConnectProvider = provider;
-
-            // 获取连接的账户
-            const accounts = await window.web3.eth.getAccounts();
-            if (accounts.length > 0) {
-                userAccount = accounts[0];
-                updateUIForConnectedWallet();
-                updateStatusText(`Connected to account via WalletConnect: ${formatAddress(userAccount)}`);
-            }
-
-            // 监听账户变更
-            provider.on("accountsChanged", (accounts) => {
-                if (accounts.length > 0) {
-                    userAccount = accounts[0];
-                    updateUIForConnectedWallet();
-                    updateStatusText(`Account changed: ${formatAddress(userAccount)}`);
-                } else {
-                    resetUI();
-                    updateStatusText('No connected accounts');
-                }
-            });
-
-            // 监听链变更
-            provider.on("chainChanged", (chainId) => {
-                console.log('Chain changed:', chainId);
-                updateStatusText(`Chain changed: ${chainId}`);
-            });
-
-            // 监听断开连接
-            provider.on("disconnect", (code, reason) => {
-                console.log('Disconnected:', code, reason);
-                userAccount = null;
-                resetUI();
-                updateStatusText('Wallet disconnected');
-            });
-
-            return provider;
-        } catch (error) {
-            console.error('Error initializing WalletConnect:', error);
-            updateStatusText(`WalletConnect connection failed: ${error.message || error}`);
-            // 显示错误信息并提供替代连接选项
-            updateStatusText('Failed to connect to WalletConnect, please try other connection methods');
-            if (isMobile()) {
-                setTimeout(() => {
-                    openMetaMaskMobile(); // 这已经提供了多种连接选项
-                }, 1000);
-            } else {
-                // 在桌面上，告知用户安装MetaMask扩展
-                alert('Connection failed. Please install the MetaMask browser extension or try using a mobile device.');
-            }
-            throw error;
-        }
     }
 
     // 添加备用WalletConnect连接方法 - 使用在线二维码生成器
