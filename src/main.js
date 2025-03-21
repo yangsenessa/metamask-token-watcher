@@ -2241,10 +2241,159 @@ async function checkMetaMaskAuthorizationStatus() {
     }
 }
 
+// 添加智能重试连接函数
+async function attemptMetaMaskConnection(maxRetries = 5, delayMs = 1000) {
+    let attempts = 0;
+    
+    async function tryConnection() {
+        try {
+            attempts++;
+            console.log(`MetaMask connection attempt ${attempts}/${maxRetries}`);
+            
+            // 检查连接状态
+            if (!window.ethereum) {
+                throw new Error('MetaMask provider not found');
+            }
+            
+            // 检查提供者连接状态
+            const isProviderConnected = window.ethereum.isConnected?.() || false;
+            console.log(`Provider connection status: ${isProviderConnected}`);
+            
+            // 如果提供者未连接，等待连接
+            if (!isProviderConnected && attempts < maxRetries) {
+                updateStatusText(`等待连接到MetaMask... (${attempts}/${maxRetries})`);
+                setTimeout(tryConnection, delayMs);
+                return;
+            }
+            
+            // 尝试获取账户
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            
+            if (accounts && accounts.length > 0) {
+                // 已有授权，直接使用
+                userAccount = accounts[0];
+                updateUIForConnectedWallet();
+                updateStatusText(`已连接到账户: ${formatAddress(userAccount)}`);
+                
+                // 更新连接状态
+                saveConnectionState({
+                    connected: true,
+                    address: userAccount,
+                    pendingAuthorization: false
+                });
+                return true;
+            }
+            
+            // 需要请求授权
+            updateStatusText('请求MetaMask授权...');
+            const requestedAccounts = await window.ethereum.request({ 
+                method: 'eth_requestAccounts'
+            });
+            
+            if (requestedAccounts && requestedAccounts.length > 0) {
+                userAccount = requestedAccounts[0];
+                updateUIForConnectedWallet();
+                updateStatusText(`已连接到账户: ${formatAddress(userAccount)}`);
+                
+                // 更新连接状态
+                saveConnectionState({
+                    connected: true,
+                    address: userAccount,
+                    pendingAuthorization: false
+                });
+                return true;
+            }
+            
+            return false;
+        } catch (error) {
+            console.error(`连接尝试 ${attempts} 失败:`, error);
+            
+            if (error.message?.includes('invalid connection status') || 
+                error.message?.includes('not connected') ||
+                error.code === -32002) { // 请求已经在进行中
+                
+                if (attempts < maxRetries) {
+                    // 如果是连接问题，增加延迟重试
+                    const nextDelay = delayMs * 1.5;
+                    updateStatusText(`正在等待MetaMask准备就绪... (${attempts}/${maxRetries})`);
+                    setTimeout(tryConnection, nextDelay);
+                    return;
+                } else {
+                    // 超出重试次数，显示手动重试按钮
+                    showManualRetryButton();
+                }
+            } else if (error.code === 4001) {
+                // 用户拒绝了连接请求
+                updateStatusText('连接请求被拒绝');
+                localStorage.removeItem('metamask_connection_state');
+            } else {
+                // 其他错误
+                updateStatusText(`连接失败: ${error.message || '未知错误'}`);
+                
+                if (attempts < maxRetries) {
+                    setTimeout(tryConnection, delayMs);
+                } else {
+                    // 显示重试按钮
+                    showManualRetryButton();
+                }
+            }
+            return false;
+        }
+    }
+    
+    return tryConnection();
+}
+
+// 显示手动重试按钮
+function showManualRetryButton() {
+    // 创建重试UI元素
+    const retryContainer = document.createElement('div');
+    retryContainer.id = 'retry-container';
+    retryContainer.style.margin = '15px 0';
+    retryContainer.style.textAlign = 'center';
+    
+    const retryButton = document.createElement('button');
+    retryButton.textContent = '重试连接';
+    retryButton.style.padding = '10px 20px';
+    retryButton.style.backgroundColor = '#f6851b';
+    retryButton.style.color = 'white';
+    retryButton.style.border = 'none';
+    retryButton.style.borderRadius = '5px';
+    retryButton.style.cursor = 'pointer';
+    
+    retryButton.onclick = () => {
+        // 移除重试按钮
+        if (document.getElementById('retry-container')) {
+            document.getElementById('retry-container').remove();
+        }
+        // 重新尝试连接
+        attemptMetaMaskConnection();
+    };
+    
+    retryContainer.appendChild(retryButton);
+    
+    // 添加到页面上
+    const connectSection = document.getElementById('connect-section');
+    if (connectSection) {
+        // 检查是否已存在
+        const existingRetry = document.getElementById('retry-container');
+        if (existingRetry) {
+            existingRetry.remove();
+        }
+        connectSection.appendChild(retryContainer);
+    }
+}
+
 // 在页面加载时检查授权状态
 window.addEventListener('DOMContentLoaded', () => {
     // 检查是否是从MetaMask返回
     setTimeout(() => {
-        checkMetaMaskAuthorizationStatus();
-    }, 500);
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('metamask_return')) {
+            // 使用智能重试连接而不是直接检查
+            attemptMetaMaskConnection();
+        } else {
+            checkMetaMaskAuthorizationStatus();
+        }
+    }, 800); // 增加初始延迟，给provider更多初始化时间
 });
