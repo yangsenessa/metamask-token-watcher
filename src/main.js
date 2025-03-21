@@ -351,6 +351,7 @@ function isMetaMaskInAppBrowser() {
 
 // 全局变量定义
 let userAccount = null;
+let accounts = []; // Add global accounts variable declaration
 
 function openMetaMaskMobile() {
     // 如果已经连接则不需要再次连接
