@@ -11,6 +11,7 @@
     "prod": "npm run build && npx http-server dist"
   },
   "dependencies": {
+    "@metamask/sdk": "^0.16.0",
     "@walletconnect/randombytes": "^1.1.0",
     "@walletconnect/web3-provider": "^1.8.0",
     "ethers": "^5.7.2",
@@ -38,5 +39,9 @@
     "webpack": "^5.88.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.2"
+  },
+  "overrides": {
+    "react": "^18.3.1",
+    "react-native": "0.72.6"
   }
 }
