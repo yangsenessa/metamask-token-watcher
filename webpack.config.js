@@ -8,12 +8,13 @@ module.exports = {
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.[contenthash].js',
-        publicPath: '/',  // 开发环境中使用绝对路径
-        chunkFilename: '[name].[contenthash].js'
+        publicPath: '',  // 修改为相对路径
+        chunkFilename: '[name].[contenthash].js',
+        clean: true     // 在每次构建前清理dist目录
     },
     devtool: 'source-map',
     // 设置明确的模式
-    mode: 'production',
+    mode: process.env.NODE_ENV === 'production' ? 'production' : 'development',
     // 性能提示配置 - 忽略大体积资产警告
     performance: {
         hints: false,
@@ -87,7 +88,12 @@ module.exports = {
         open: true,                // 自动打开浏览器
         devMiddleware: {
             writeToDisk: true      // 将文件写入磁盘
-        }
+        },
+        client: {
+            overlay: true,    // 在浏览器中显示编译错误
+            progress: true    // 在浏览器中显示编译进度
+        },
+        watchFiles: ['src/**/*', 'public/**/*']  // 监视这些文件的变化
     },
     // 添加特殊处理以支持WalletConnect
     module: {
